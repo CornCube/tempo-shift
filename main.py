@@ -23,11 +23,14 @@ def download_video(video):
 
 def track_creation(bpm, filename):
     sound = pydub.AudioSegment.from_file("./data/" + filename)
-
     y, sr = librosa.load(os.getcwd() + "./data/" + filename, sr=None)
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
 
-    print(filename + " has an average bpm of " + str(tempo))
+    x = input("Do you want to manually enter the bpm? (y/n): ")
+    if x == "y":
+        tempo = input("Enter the bpm for " + filename + ": ")
+    else:
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        print(filename + " has an average bpm of " + str(tempo))
 
     def speed_change(sound, speed=1.0):
         y_stretched = pyrubberband.time_stretch(y, sr, speed)
@@ -35,12 +38,13 @@ def track_creation(bpm, filename):
             os.remove(os.getcwd() + "./adjusted/" + filename)
         sf.write(os.getcwd() + "./adjusted/" + filename, y_stretched, sr, format='wav')
 
-    factor = bpm / tempo
+    factor = bpm / float(tempo)
     speed_change(sound, factor)
 
-    y, sr = librosa.load(os.getcwd() + "./adjusted/" + filename, sr=None)
-    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    print(filename + " has an adjusted bpm of " + str(tempo))
+    # y, sr = librosa.load(os.getcwd() + "./adjusted/" + filename, sr=None)
+    # tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+    # print(filename + " has an adjusted bpm of " + str(tempo))
+    print("Track has been adjusted by a factor of " + str(factor) + "\n")
 
 
 def combine_tracks(bpm):
@@ -81,6 +85,11 @@ def combine_tracks(bpm):
 
 
 if __name__ == '__main__':
+    if "data" not in os.listdir(os.getcwd()):
+        os.mkdir(os.getcwd() + "\\data")
+    if "adjusted" not in os.listdir(os.getcwd()):
+        os.mkdir(os.getcwd() + "\\adjusted")
+
     choice = '0'
     while choice != '5':
         print("1. Enter a link to a youtube playlist")
@@ -131,8 +140,8 @@ if __name__ == '__main__':
             choice2 = input("Combine tracks? (y/n): ")
 
             for song in os.listdir(os.getcwd() + "\\data"):
-                track_creation(int(bpm), song)
+                track_creation(float(bpm), song)
 
             if choice2 == 'y':
                 print()
-                combine_tracks(int(bpm))
+                combine_tracks(float(bpm))
