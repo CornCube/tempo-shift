@@ -1,9 +1,7 @@
 # file libraries
-import urllib.request
-from pytube import YouTube, Playlist
-import re
-import webbrowser
+from pytube import YouTube, Playlist, Search
 from tqdm import tqdm
+import re
 
 # sound manipulation libraries
 import librosa
@@ -12,60 +10,77 @@ import os
 import pyrubberband
 import soundfile as sf
 
-playlist = "playlist.txt"
 
-
-# with open(playlist, "r") as file:
-#     next(file)
-#     for line in tqdm(file):
-#         search_keyword = line
-#         html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + search_keyword)
-#         video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
-#         playlistids = playlistids + video_ids[0] + ","
-#         count += 1
-#         print("https://www.youtube.com/watch?v=" + video_ids[0])  # individual links
-#         if (count % 50 == 0):
-#             webbrowser.open("https://www.youtube.com/watch_videos?video_ids=" + playlistids)
-#             playlistids = ""
-#
-# playlistids = playlistids.rstrip(",")
-# webbrowser.open("https://www.youtube.com/watch_videos?video_ids=" + playlistids)
-
-def download_video(url):
-    yt = YouTube(vid)
+def download_video(video):
+    yt = YouTube(video)
 
     video = yt.streams.filter(only_audio=True).first()
-    out_file = video.download(output_path="./data")
+    out_file = video.download(output_path=os.getcwd() + "\\data")
 
-    base, ext = os.path.splitext(out_file)
-    new_file = base + '.wav'
-
-    os.replace(out_file, new_file)
+    base = os.path.splitext(out_file)[0]
+    os.rename(out_file, base + '.wav')
 
 
-def track_creation():
-    sound = pydub.AudioSegment.from_mp3(os.getcwd() + "\\asgard.mp3")
-    sound.export(os.getcwd() + "\\asgard.wav", format="wav")
-    filename = "asgard.wav"
+def track_creation(bpm, filename):
+    sound = pydub.AudioSegment.from_file("./data/" + filename)
 
-    sound = pydub.AudioSegment.from_file(filename)
+    y, sr = librosa.load(os.getcwd() + "./data/" + filename, sr=None)
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+
+    print(filename + " has an average bpm of " + str(tempo))
 
     def speed_change(sound, speed=1.0):
-        y, sr = librosa.load(os.getcwd() + "\\asgard.wav", sr=None)
         y_stretched = pyrubberband.time_stretch(y, sr, speed)
-        sf.write(os.getcwd() + "\\asgard.wav", y_stretched, sr, format='wav')
+        if os.getcwd() + "./adjusted/" + filename in os.listdir(os.getcwd() + "./adjusted/"):
+            os.remove(os.getcwd() + "./adjusted/" + filename)
+        sf.write(os.getcwd() + "./adjusted/" + filename, y_stretched, sr, format='wav')
 
-    speed_change(sound, 1.5)
+    factor = bpm / tempo
+    speed_change(sound, factor)
 
-    # y, sr = librosa.load(filename)
-    #
-    # tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    #
-    # print(tempo)
+    y, sr = librosa.load(os.getcwd() + "./adjusted/" + filename, sr=None)
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+    print(filename + " has an adjusted bpm of " + str(tempo))
+
+
+def combine_tracks(bpm):
+    metro = Search(str(bpm) + " bpm metronome")
+
+    for i in metro.results:
+        if i.length <= 300:
+            metro_name = i.title
+            metro_url = i.watch_url
+            download_video(metro_url)
+            break
+
+    metro_name = re.sub('[/?*:|"<>]+', '', metro_name)
+    metro_name = metro_name.replace('\\', '')
+    mt = pydub.AudioSegment.from_file('./data/' + metro_name + '.wav')
+    extract = mt[0:10000]
+
+    if os.getcwd() + "./data/metronome.wav" in os.listdir(os.getcwd()):
+        os.remove(os.getcwd() + "./data/metronome.wav")
+
+    extract.export('./data/metronome.wav', format="wav")
+
+    sound = pydub.AudioSegment.from_file("./data/metronome.wav")
+
+    for file in os.listdir(os.getcwd() + "\\adjusted"):
+        if file.endswith(".wav"):
+            sound += pydub.AudioSegment.from_file("./adjusted/" + file)
+
+    if os.getcwd() + "./combined.wav" in os.listdir(os.getcwd()):
+        os.remove(os.getcwd() + "./combined.wav")
+
+    sound.export(os.getcwd() + "./adjusted/combined.wav", format="wav")
+
+    os.remove(os.getcwd() + "./data/" + metro_name + '.wav')
+    os.remove(os.getcwd() + "./data/metronome.wav")
+
+    print("Tracks have been combined and saved as combined.wav\n")
 
 
 if __name__ == '__main__':
-    # todo: clear playlist first
     choice = '0'
     while choice != '5':
         print("1. Enter a link to a youtube playlist")
@@ -95,8 +110,29 @@ if __name__ == '__main__':
                 download_video(url)
 
         elif choice == '3':
-            # FIXME
-            url = input("Enter the url of the song: ")
+            name = '0'
+            while name != "q":
+                name = input("Enter the name of the song or press 'q' to exit: ")
+                if name == "q":
+                    print()
+                    break
+
+                song = Search(name)
+
+                url = song.results[0].watch_url
+                download_video(url)
 
         elif choice == '4':
-            track_creation()
+            bpm = input("Enter the desired bpm or press 'q' to exit: ")
+            if bpm == "q":
+                print()
+                break
+
+            choice2 = input("Combine tracks? (y/n): ")
+
+            for song in os.listdir(os.getcwd() + "\\data"):
+                track_creation(int(bpm), song)
+
+            if choice2 == 'y':
+                print()
+                combine_tracks(int(bpm))
