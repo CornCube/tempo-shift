@@ -25,10 +25,8 @@ def track_creation(bpm, filename):
     sound = pydub.AudioSegment.from_file("./data/" + filename)
     y, sr = librosa.load(os.getcwd() + "./data/" + filename, sr=None)
 
-    x = input("Do you want to manually enter the bpm? (y/n): ")
-    if x == "y":
-        tempo = input("Enter the bpm for " + filename + ": ")
-    else:
+    tempo = input("Enter the bpm of " + filename + " or press 'n' to accept an average: ")
+    if tempo == "n":
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
         print(filename + " has an average bpm of " + str(tempo))
 
@@ -44,44 +42,40 @@ def track_creation(bpm, filename):
     # y, sr = librosa.load(os.getcwd() + "./adjusted/" + filename, sr=None)
     # tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
     # print(filename + " has an adjusted bpm of " + str(tempo))
-    print("Track has been adjusted by a factor of " + str(factor) + "\n")
+    print("Track has been adjusted by a factor of " + str(factor))
 
 
 def combine_tracks(bpm):
     metro = Search(str(bpm) + " bpm metronome")
 
-    for i in metro.results:
-        if i.length <= 300:
-            metro_name = i.title
-            metro_url = i.watch_url
-            download_video(metro_url)
-            break
+    metro_name = metro.results[0].title
+    metro_url = metro.results[0].watch_url
+    print("Downloading " + metro_name + "...")
+    download_video(metro_url)
 
     metro_name = re.sub('[/?*:|"<>]+', '', metro_name)
     metro_name = metro_name.replace('\\', '')
-    mt = pydub.AudioSegment.from_file('./data/' + metro_name + '.wav')
+    mt = pydub.AudioSegment.from_file(os.getcwd() + './data/' + metro_name + '.wav')
     extract = mt[0:10000]
 
-    if os.getcwd() + "./data/metronome.wav" in os.listdir(os.getcwd()):
-        os.remove(os.getcwd() + "./data/metronome.wav")
-
     extract.export('./data/metronome.wav', format="wav")
+    print("Metronome has been downloaded and clipped")
 
     sound = pydub.AudioSegment.from_file("./data/metronome.wav")
+
+    if "combined.wav" in os.listdir(os.getcwd() + "\\adjusted"):
+        os.remove(os.getcwd() + "\\adjusted\\combined.wav")
 
     for file in os.listdir(os.getcwd() + "\\adjusted"):
         if file.endswith(".wav"):
             sound += pydub.AudioSegment.from_file("./adjusted/" + file)
-
-    if os.getcwd() + "./combined.wav" in os.listdir(os.getcwd()):
-        os.remove(os.getcwd() + "./combined.wav")
 
     sound.export(os.getcwd() + "./adjusted/combined.wav", format="wav")
 
     os.remove(os.getcwd() + "./data/" + metro_name + '.wav')
     os.remove(os.getcwd() + "./data/metronome.wav")
 
-    print("Tracks have been combined and saved as combined.wav\n")
+    print("Tracks have been combined and saved as 'combined.wav'\n")
 
 
 if __name__ == '__main__':
@@ -139,7 +133,7 @@ if __name__ == '__main__':
 
             choice2 = input("Combine tracks? (y/n): ")
 
-            for song in os.listdir(os.getcwd() + "\\data"):
+            for song in tqdm(os.listdir(os.getcwd() + "\\data")):
                 track_creation(float(bpm), song)
 
             if choice2 == 'y':
