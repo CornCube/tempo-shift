@@ -1,7 +1,6 @@
 # file libraries
 from pytube import YouTube, Playlist, Search
 from tqdm import tqdm
-import re
 
 # sound manipulation libraries
 import librosa
@@ -44,36 +43,69 @@ def track_creation(bpm, filename):
     # print(filename + " has an adjusted bpm of " + str(tempo))
     print("Track has been adjusted by a factor of " + str(factor))
 
+    if choice3 == "n":
+        x = input("Add metronome throughout the song to stay on beat? (y/n): ")
+        if x == "y":
+            os.chdir("./adjusted")
+            y, sr = librosa.load(filename)
+            tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
+            beat_times = librosa.frames_to_time(beats, sr=sr)
+            if "metronome.wav" in os.listdir(os.getcwd()):
+                os.remove("metronome.wav")
+            sf.write('metronome.wav', librosa.clicks(times=beat_times, sr=sr), sr, format='wav')
+
+            sound1 = pydub.AudioSegment.from_file(filename)
+            sound2 = pydub.AudioSegment.from_file("metronome.wav")
+
+            with_metronome = sound1.overlay(sound2)
+
+            if filename in os.listdir(os.getcwd()):
+                os.remove(filename)
+            with_metronome.export(filename, format="wav")
+
+            os.remove("metronome.wav")
+
+            print("Track has been created with metronome overlay")
+
+            os.chdir('..')
+
+        else:
+            print("Track has been created without metronome overlay")
+
+    else:
+        print("Track has been created without metronome overlay")
+
 
 def combine_tracks(bpm):
-    metro = Search(str(bpm) + " bpm metronome")
+    os.chdir('./adjusted')
 
-    metro_name = metro.results[0].title
-    metro_url = metro.results[0].watch_url
-    print("Downloading " + metro_name + "...")
-    download_video(metro_url)
+    if "combined.wav" in os.listdir(os.getcwd()):
+        os.remove(os.getcwd() + "\\combined.wav")
 
-    metro_name = re.sub('[/?*:|"<>]+', '', metro_name)
-    metro_name = metro_name.replace('\\', '')
-    mt = pydub.AudioSegment.from_file(os.getcwd() + './data/' + metro_name + '.wav')
-    extract = mt[0:10000]
+    sound = pydub.AudioSegment.from_file(os.listdir(os.getcwd())[0])
 
-    extract.export('./data/metronome.wav', format="wav")
-    print("Metronome has been downloaded and clipped")
-
-    sound = pydub.AudioSegment.from_file("./data/metronome.wav")
-
-    if "combined.wav" in os.listdir(os.getcwd() + "\\adjusted"):
-        os.remove(os.getcwd() + "\\adjusted\\combined.wav")
-
-    for file in os.listdir(os.getcwd() + "\\adjusted"):
+    for file in os.listdir(os.getcwd())[1:]:
         if file.endswith(".wav"):
-            sound += pydub.AudioSegment.from_file("./adjusted/" + file)
+            sound += pydub.AudioSegment.from_file(file)
 
-    sound.export(os.getcwd() + "./adjusted/combined.wav", format="wav")
+    sound.export("combined.wav", format="wav")
 
-    os.remove(os.getcwd() + "./data/" + metro_name + '.wav')
-    os.remove(os.getcwd() + "./data/metronome.wav")
+    if choice3 == "y":
+        y, sr = librosa.load('combined.wav')
+        tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
+        beat_times = librosa.frames_to_time(beats, sr=sr)
+        sf.write('metronome.wav', librosa.clicks(times=beat_times, sr=sr), sr, format='wav')
+
+        sound1 = pydub.AudioSegment.from_file("combined.wav")
+        sound2 = pydub.AudioSegment.from_file("metronome.wav")
+
+        with_metronome = sound1.overlay(sound2)
+
+        os.remove("combined.wav")
+        os.remove("metronome.wav")
+        with_metronome.export("combined.wav", format="wav")
+
+        os.chdir('..')
 
     print("Tracks have been combined and saved as 'combined.wav'\n")
 
@@ -132,6 +164,9 @@ if __name__ == '__main__':
                 break
 
             choice2 = input("Combine tracks? (y/n): ")
+
+            if choice2 == 'y':
+                choice3 = input("Add metronome to entire track? (y/n): ")
 
             for song in tqdm(os.listdir(os.getcwd() + "\\data")):
                 track_creation(float(bpm), song)
