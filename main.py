@@ -164,6 +164,7 @@ if __name__ == '__main__':
                 break
 
             choice2 = input("Combine tracks? (y/n): ")
+            choice3 = 'n'
 
             if choice2 == 'y':
                 choice3 = input("Add metronome to entire track? (y/n): ")
