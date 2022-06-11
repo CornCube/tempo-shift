@@ -1,5 +1,5 @@
 # tempo-shift
-Downloads and converts tracks from YouTube into a specific rhythm.
+Downloads and converts tracks from YouTube into a specific rhythm. 
 
 ![](demo.gif)
 
@@ -15,7 +15,9 @@ Download dist.zip from the releases tab and extract to a folder.
 ## Usage
 To get started, just run 'main.exe'. Original songs are saved in the 'data' folder, results are saved in the 'adjusted' folder.
 
-**NOTE: If the tempo of the song in question is much higher/lower than the tempo that you are shifting to, it is better to use a halved/doubled tempo to avoid distorting the original song too much. 
+**NOTE: Works best with songs that are 1) similar in tempo to the desired tempo and 2) have a fairly consistent rhythm**
+
+**NOTE part 2: If the tempo of the song in question is much higher/lower than the tempo that you are shifting to, it is better to use a halved/doubled tempo to avoid distorting the original song too much. 
 For example, 'The Top' by Ken Blast is 160 bpm. If we are shifting it to 88 bpm, use 80 bpm as the actual value instead of 160 bpm to prevent the song from being slowed by ~50%.**
 
 ### Options
