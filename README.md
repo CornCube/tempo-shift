@@ -33,6 +33,10 @@ For example, 'The Top' by Ken Blast is 160 bpm. If we are shifting it to 88 bpm,
    * Enter the actual bpm of the song or accept an estimation (Remember to double/halve bpm as needed to prevent distortion)
 5. Exit
 
+### Demo
+I wrote this with the game BPM: Bullets Per Minute in mind, so here's a bit of gameplay!
+https://www.reddit.com/r/bpmgame/comments/vaa14k/custom_music/
+
 ## Resources
 Automatic tempo calculation is just an approximate estimation, so it is recommended to find accurate information online instead. 
 
