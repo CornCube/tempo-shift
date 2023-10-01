@@ -1,177 +1,141 @@
-# file libraries
+import streamlit as st
+import os
 from pytube import YouTube, Playlist, Search
-from tqdm import tqdm
-
-# sound manipulation libraries
+import time
 import librosa
 import pydub
-import os
-import pyrubberband
 import soundfile as sf
 
+# Create directories if they don't exist
+def create_dirs():
+    if "data" not in os.listdir(os.getcwd()):
+        os.mkdir(os.getcwd() + "/data")
+    if "adjusted" not in os.listdir(os.getcwd()):
+        os.mkdir(os.getcwd() + "/adjusted")
 
+# Download the audio from a YouTube video
 def download_video(video):
     yt = YouTube(video)
-
-    video = yt.streams.filter(only_audio=True).first()
-    out_file = video.download(output_path=os.getcwd() + "\\data")
-
+    video_stream = yt.streams.filter(only_audio=True).first()
+    out_file = video_stream.download(output_path=os.getcwd() + "/data")
     base = os.path.splitext(out_file)[0]
-    os.rename(out_file, base + '.wav')
+    new_base = base + '_' + str(int(time.time()))
+    os.rename(out_file, new_base + '.wav')
 
+# Download the audio from a YouTube playlist
+def download_playlist(url):
+    playlist = Playlist(url)
+    progress_bar = st.progress(0)
+    for idx, vid in enumerate(playlist.video_urls):
+        with st.spinner('Downloading audio files...'):
+            download_video(vid)
+            time.sleep(0.1)
+        progress_bar.progress((idx + 1) / len(playlist.video_urls))
 
-def track_creation(bpm, filename):
-    sound = pydub.AudioSegment.from_file("./data/" + filename)
-    y, sr = librosa.load(os.getcwd() + "./data/" + filename, sr=None)
+# Download the audio from a song name
+def download_song(name):
+    song = Search(name)
+    url = song.results[0].watch_url
+    download_video(url)
 
-    tempo = input("Enter the bpm of " + filename + " or press 'n' to accept an average: ")
-    if tempo == "n":
-        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-        print(filename + " has an average bpm of " + str(tempo))
+# Create the tracks
+def track_creation(bpm):
+    song_files = os.listdir(os.getcwd() + "/data")
+    tempo = st.text_input("Enter the tempo of the song:")
+    progress_bar = st.progress(0)
+    for idx, filename in enumerate(song_files):
+        y, sr = librosa.load(os.getcwd() + "/data/" + filename, sr=None)
+        factor = bpm / float(tempo)
+        y_fast = librosa.effects.time_stretch(y, factor)
+        sf.write(os.getcwd() + "/adjusted/" + filename, y_fast, sr)
+        progress_bar.progress((idx + 1) / len(song_files))
 
-    def speed_change(sound, speed=1.0):
-        y_stretched = pyrubberband.time_stretch(y, sr, speed)
-        if os.getcwd() + "./adjusted/" + filename in os.listdir(os.getcwd() + "./adjusted/"):
-            os.remove(os.getcwd() + "./adjusted/" + filename)
-        sf.write(os.getcwd() + "./adjusted/" + filename, y_stretched, sr, format='wav')
+# Combine tracks into one file
+def combine_tracks():
+    adjusted_dir = 'adjusted'
+    combined_filename = os.path.join(adjusted_dir, "combined.mp3")
+    if os.path.exists(combined_filename):
+        os.remove(combined_filename)
+    file_list = [f for f in os.listdir(adjusted_dir) if f.endswith(".wav")]
 
-    factor = bpm / float(tempo)
-    speed_change(sound, factor)
+    if not file_list:
+        st.error("No WAV files found in the adjusted directory.")
+        return
 
-    # y, sr = librosa.load(os.getcwd() + "./adjusted/" + filename, sr=None)
-    # tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    # print(filename + " has an adjusted bpm of " + str(tempo))
-    print("Track has been adjusted by a factor of " + str(factor))
+    combined_audio = pydub.AudioSegment.empty()
 
-    if choice3 == "n":
-        x = input("Add metronome throughout the song to stay on beat? (y/n): ")
-        if x == "y":
-            os.chdir("./adjusted")
-            y, sr = librosa.load(filename)
-            tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-            beat_times = librosa.frames_to_time(beats, sr=sr)
-            if "metronome.wav" in os.listdir(os.getcwd()):
-                os.remove("metronome.wav")
-            sf.write('metronome.wav', librosa.clicks(times=beat_times, sr=sr), sr, format='wav')
+    progress_bar = st.progress(0)
 
-            sound1 = pydub.AudioSegment.from_file(filename)
-            sound2 = pydub.AudioSegment.from_file("metronome.wav")
+    for idx, file in enumerate(file_list):
+        with st.spinner('Processing audio files...'):
+            combined_audio += pydub.AudioSegment.from_file(os.path.join(adjusted_dir, file))
+            time.sleep(0.1)
+        progress_bar.progress((idx + 1) / len(file_list))
 
-            with_metronome = sound1.overlay(sound2)
+    combined_audio.export(combined_filename, format="mp3") 
 
-            if filename in os.listdir(os.getcwd()):
-                os.remove(filename)
-            with_metronome.export(filename, format="wav")
+# Streamlit Interface
+def main():
+    st.title("YouTube Downloader + Tempo Shift")
 
-            os.remove("metronome.wav")
+    st.markdown("""
+    This app allows you to download audio from YouTube videos, adjust the tempo to match a desired BPM, 
+    and combine adjusted tracks into one file.
+    """)
 
-            print("Track has been created with metronome overlay")
+    create_dirs()
 
-            os.chdir('..')
+    st.subheader("Step 1: Download songs from YouTube")
+    st.markdown("""
+    These songs will be saved in the `\\data` folder. If you already have songs downloaded, make sure they are in `.wav` format and put them in the `\\data` folder.
+    """)
+                
+    method = st.radio(
+        "Download Method:",
+        ["Enter a YouTube playlist link", "Enter YouTube video links", "Enter song names"]
+    )
 
-        else:
-            print("Track has been created without metronome overlay")
+    if method == "Enter a YouTube playlist link":
+        st.markdown("Download a song using a YouTube playlist link")
+        url = st.text_input("Enter the URL of the playlist (must be public):")
+        if st.button("Download Playlist"):
+            download_playlist(url)
 
-    else:
-        print("Track has been created without metronome overlay")
+    elif method == "Enter YouTube video links":
+        st.markdown("Download a song using a YouTube video link")
+        url = st.text_input("Enter the URL of the video:")
+        if st.button("Download Video"):
+            download_video(url)
 
+    elif method == "Enter song names":
+        st.markdown("Download a song using a song name (first result from YouTube)")
+        name = st.text_input("Enter the name of the song:")
+        if st.button("Search and Download Song"):
+            download_song(name)
+    st.caption(f"Current working directory: {os.getcwd()}")
 
-def combine_tracks(bpm):
-    os.chdir('./adjusted')
+    st.subheader("Step 2: Create adjusted tracks")
+    st.markdown("""
+    Create tracks from the downloaded audio files inside of the data folder.
+    The tracks will be saved in the `\\adjusted` folder.
+    You will need the bpm of each song, which can be found online or at one of these websites:
+    - [GetSongBPM](https://getsongbpm.com/search)
+    - [Tunebat Analyzer](https://tunebat.com/Analyzer)
+    - [Beats Per Minute Online](https://www.beatsperminuteonline.com/)
+    - [SongBPM](https://songbpm.com/)
+    """)
+    
+    bpm = st.text_input("Enter the desired BPM:")
+    if st.button("Create Tracks"):
+        track_creation(bpm)
 
-    if "combined.wav" in os.listdir(os.getcwd()):
-        os.remove(os.getcwd() + "\\combined.wav")
+    st.subheader("Step 3: Combine adjusted tracks")
+    st.markdown("""
+    Combine the tracks in the adjusted folder into one file.
+    """)
+    
+    if st.button("Combine Tracks"):
+        combine_tracks()
 
-    sound = pydub.AudioSegment.from_file(os.listdir(os.getcwd())[0])
-
-    for file in os.listdir(os.getcwd())[1:]:
-        if file.endswith(".wav"):
-            sound += pydub.AudioSegment.from_file(file)
-
-    sound.export("combined.wav", format="wav")
-
-    if choice3 == "y":
-        y, sr = librosa.load('combined.wav')
-        tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-        beat_times = librosa.frames_to_time(beats, sr=sr)
-        sf.write('metronome.wav', librosa.clicks(times=beat_times, sr=sr), sr, format='wav')
-
-        sound1 = pydub.AudioSegment.from_file("combined.wav")
-        sound2 = pydub.AudioSegment.from_file("metronome.wav")
-
-        with_metronome = sound1.overlay(sound2)
-
-        os.remove("combined.wav")
-        os.remove("metronome.wav")
-        with_metronome.export("combined.wav", format="wav")
-
-        os.chdir('..')
-
-    print("Tracks have been combined and saved as 'combined.wav'\n")
-
-
-if __name__ == '__main__':
-    if "data" not in os.listdir(os.getcwd()):
-        os.mkdir(os.getcwd() + "\\data")
-    if "adjusted" not in os.listdir(os.getcwd()):
-        os.mkdir(os.getcwd() + "\\adjusted")
-
-    choice = '0'
-    while choice != '5':
-        print("1. Enter a link to a youtube playlist")
-        print("2. Enter links to youtube videos")
-        print("3. Enter song names (there may be errors in searching)")
-        print("4. Continue to track creation")
-        print("5. Exit")
-
-        choice = input("\nEnter your choice: ")
-
-        if choice == '1':
-            url = input("Enter the url of the playlist (must be public) or press 'q' to exit: ")
-            if url == 'q':
-                break
-            playlist = Playlist(url)
-            for vid in tqdm(playlist.video_urls, total=len(playlist.video_urls)):
-                download_video(vid)
-
-        elif choice == '2':
-            url = '0'
-            while url != "q":
-                url = input("Enter the url of the video or press 'q' to exit: ")
-                if url == "q":
-                    print()
-                    break
-
-                download_video(url)
-
-        elif choice == '3':
-            name = '0'
-            while name != "q":
-                name = input("Enter the name of the song or press 'q' to exit: ")
-                if name == "q":
-                    print()
-                    break
-
-                song = Search(name)
-
-                url = song.results[0].watch_url
-                download_video(url)
-
-        elif choice == '4':
-            bpm = input("Enter the desired bpm or press 'q' to exit: ")
-            if bpm == "q":
-                print()
-                break
-
-            choice2 = input("Combine tracks? (y/n): ")
-            choice3 = 'n'
-
-            if choice2 == 'y':
-                choice3 = input("Add metronome to entire track? (y/n): ")
-
-            for song in tqdm(os.listdir(os.getcwd() + "\\data")):
-                track_creation(float(bpm), song)
-
-            if choice2 == 'y':
-                print()
-                combine_tracks(float(bpm))
+if __name__ == "__main__":
+    main()
