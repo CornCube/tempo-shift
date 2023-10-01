@@ -123,6 +123,14 @@ def main():
     - [Tunebat Analyzer](https://tunebat.com/Analyzer)
     - [Beats Per Minute Online](https://www.beatsperminuteonline.com/)
     - [SongBPM](https://songbpm.com/)
+                
+    If the tempo of the song in question is much higher/lower than the tempo that you are shifting to, 
+                it is better to use a halved/doubled tempo to avoid distorting the original song too 
+                much. For example, 'The Top' by Ken Blast is 160 bpm. If we are shifting it to 88 bpm, 
+                use 80 bpm as the actual value instead of 160 bpm to prevent the song from being slowed 
+                by ~50%.
+
+    This process works best with songs that are 1) similar in tempo to the desired tempo and 2) have a fairly consistent rhythm.
     """)
     
     bpm = st.text_input("Enter the desired BPM:")
