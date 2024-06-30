@@ -2,6 +2,7 @@
 Downloads and converts tracks from YouTube into a specific rhythm. 
 
 ![](demo.gif)
+*out of date, now uses a web UI
 
 ## Features
 * Download songs straight from YouTube using individual links, public playlists, or video titles

@@ -39,14 +39,13 @@ def download_song(name):
     download_video(url)
 
 # Create the tracks
-def track_creation(bpm):
+def track_creation(bpm, tempo):
     song_files = os.listdir(os.getcwd() + "/data")
-    tempo = st.text_input("Enter the tempo of the song:")
     progress_bar = st.progress(0)
     for idx, filename in enumerate(song_files):
         y, sr = librosa.load(os.getcwd() + "/data/" + filename, sr=None)
-        factor = bpm / float(tempo)
-        y_fast = librosa.effects.time_stretch(y, factor)
+        factor = float(bpm) / float(tempo)
+        y_fast = librosa.effects.time_stretch(y, rate = factor)
         sf.write(os.getcwd() + "/adjusted/" + filename, y_fast, sr)
         progress_bar.progress((idx + 1) / len(song_files))
 
@@ -134,8 +133,9 @@ def main():
     """)
     
     bpm = st.text_input("Enter the desired BPM:")
+    tempo = st.text_input("Enter the tempo of the song:")
     if st.button("Create Tracks"):
-        track_creation(bpm)
+        track_creation(bpm, tempo)
 
     st.subheader("Step 3: Combine adjusted tracks")
     st.markdown("""
